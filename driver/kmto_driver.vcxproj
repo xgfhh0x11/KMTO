@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B4E5E2C5-8B3B-4C24-A0D8-1E01D837F135}</ProjectGuid>
+    <TemplateGuid>{B53146FA-082D-40E4-9923-0E0006B067EF}</TemplateGuid>
+    <Keyword>KMDriver</Keyword>
+    <RootNamespace>KmtoDriver</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <ProjectName>kmto_driver</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup>
+    <WDKRoot Condition="'$(WDKRoot)'==''">C:\Program Files (x86)\Windows Kits\10</WDKRoot>
+    <WDKVersion Condition="'$(WDKVersion)'==''">10.0.26100.0</WDKVersion>
+    <WDKBuildRoot Condition="'$(WDKBuildRoot)'==''">$(WDKRoot)\build\$(WDKVersion)\</WDKBuildRoot>
+    <WindowsTargetPlatformVersion Condition="'$(WindowsTargetPlatformVersion)'==''">10.0.26100.0</WindowsTargetPlatformVersion>
+    <TargetPlatformVersion_CO Condition="'$(TargetPlatformVersion_CO)'==''">10.0.26100.0</TargetPlatformVersion_CO>
+    <TargetPlatformVersion_NI Condition="'$(TargetPlatformVersion_NI)'==''">10.0.26100.0</TargetPlatformVersion_NI>
+    <SkipValidateNTTargetVersion>true</SkipValidateNTTargetVersion>
+    <MatchingSdkPresent>true</MatchingSdkPresent>
+    <MatchingWdkPresent>true</MatchingWdkPresent>
+    <TargetPlatformVersion_FE>10.0.26100.0</TargetPlatformVersion_FE>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <TargetVersion>Windows10</TargetVersion>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverType>WDM</DriverType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <TargetVersion>Windows10</TargetVersion>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverType>WDM</DriverType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <SolutionDir Condition="'$(SolutionDir)'==''">$(MSBuildProjectDirectory)\..\</SolutionDir>
+    <OutDir>$(MSBuildProjectDirectory)\bin\$(Configuration)\</OutDir>
+    <IntDir>$(MSBuildProjectDirectory)\obj\$(Configuration)\</IntDir>
+    <TargetName>kmto_driver</TargetName>
+    <TargetExt>.sys</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WppEnabled>false</WppEnabled>
+      <AdditionalIncludeDirectories>..\include;$(WDKRoot)\Include\$(WDKVersion)\km;$(WDKRoot)\Include\$(WDKVersion)\shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>DBG=1;_AMD64_=1;AMD64=1;_KERNEL_MODE=1;WINNT=1;_WIN32_WINNT=0x0A00;NTDDI_VERSION=0x0A00000C;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>ntstrsafe.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(WDKRoot)\Lib\$(WDKVersion)\km\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WppEnabled>false</WppEnabled>
+      <AdditionalIncludeDirectories>..\include;$(WDKRoot)\Include\$(WDKVersion)\km;$(WDKRoot)\Include\$(WDKVersion)\shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;_AMD64_=1;AMD64=1;_KERNEL_MODE=1;WINNT=1;_WIN32_WINNT=0x0A00;NTDDI_VERSION=0x0A00000C;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>ntstrsafe.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(WDKRoot)\Lib\$(WDKVersion)\km\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="kmto_driver.c" />
+    <ClCompile Include="event_ring.c" />
+    <ClCompile Include="cr4_observer.c" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <PropertyGroup>
+    <LinkerPath>$(WDKRoot)\bin\x64\link.exe</LinkerPath>
+    <DriverLinkerPath Condition="exists('$(WDKRoot)\bin\x64\link.exe')">$(WDKRoot)\bin\x64\link.exe</DriverLinkerPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\km;C:\Program Files (x86)\Windows Kits\10\Include\wdf\kmdf\1.35</IncludePath>
+    <LibraryPath>C:\Program Files (x86)\Windows Kits\10\Lib\10.0.26100.0\km\x64;C:\Program Files (x86)\Windows Kits\10\Lib\wdf\kmdf\x64\1.35</LibraryPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Link>
+      <SubSystem>Native</SubSystem>
+      <Driver>Driver</Driver>
+      <AdditionalOptions>/ENTRY:GsDriverEntry /SUBSYSTEM:NATIVE,6.00 /DRIVER:WDM %(AdditionalOptions)</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Link>
+      <SubSystem>Native</SubSystem>
+      <Driver>Driver</Driver>
+      <AdditionalOptions>/ENTRY:GsDriverEntry /SUBSYSTEM:NATIVE,6.00 /DRIVER:WDM %(AdditionalOptions)</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <DriverSign>
+      <AdditionalOptions>/fd sha256 %(AdditionalOptions)</AdditionalOptions>
+    </DriverSign>
+  </ItemDefinitionGroup>
+  <Import Project="$(MSBuildThisFileDirectory)kmto_driver_signing.props" Condition="Exists('$(MSBuildThisFileDirectory)kmto_driver_signing.props')" />
+  <Choose>
+    <When Condition="'$(TestCertificate)' != ''">
+      <PropertyGroup Label="Signing">
+        <SignMode>TestSign</SignMode>
+        <GenerateTestCertificate>false</GenerateTestCertificate>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup Label="Signing">
+        <SignMode>TestSign</SignMode>
+        <GenerateTestCertificate>true</GenerateTestCertificate>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+  <Target Name="ValidateNTTargetVersion" Condition="'$(SkipValidateNTTargetVersion)' != 'true'" />
+  <Target Name="Telemetry" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

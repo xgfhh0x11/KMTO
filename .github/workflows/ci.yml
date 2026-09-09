@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-and-test-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cc: [gcc, clang]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build user-mode tool (${{ matrix.cc }})
+        run: make CC=${{ matrix.cc }}
+
+      - name: Smoke-test CLI
+        run: ./bin/kmto -h
+
+      - name: Run full scenario matrix
+        run: ./bin/kmto -t all -o ci_output
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r tests/requirements.txt
+
+      - name: Run pytest
+        run: python -m pytest tests/ -v
+
+      - name: Upload telemetry output
+        if: ${{ matrix.cc == 'gcc' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmto-output
+          path: ci_output/
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build user-mode tool with cl
+        shell: cmd
+        run: cl /W3 /I include src\main.c src\mitigation_detector.c src\telemetry.c src\test_harness.c src\config_manager.c src\reporting.c /Fe:kmto.exe
+
+      - name: Smoke-test CLI
+        shell: cmd
+        run: kmto.exe -h

@@ -1,0 +1,15 @@
+# Mitigation Configuration Example
+# Set to 1 to enable, 0 to disable
+
+# x86_64 mitigations
+SMEP=1
+SMAP=1
+
+# ARM64 mitigations
+PAC=0
+
+# Additional mitigations
+CFG=1
+KASLR=1
+KASLR_BASE=0xffffffff81000000
+
