@@ -1,0 +1,153 @@
+KMTO kernel-mode debugging (kd.exe) — command reference and triage steps
+=========================================================================
+For use against the "WinKDbg" disposable Hyper-V guest over a kdnet
+(network) debug connection from the host. See ../README.md for the
+attach command and prerequisites. Everything below assumes you are
+already attached (kd showing a "kd>" prompt).
+
+-------------------------------------------------------------------------
+1. Basic session setup
+-------------------------------------------------------------------------
+
+  .reload                     ; reload symbols for all modules
+  .reload /f                  ; force full reload if symbols look stale
+  lm                          ; list loaded modules
+  lm m kmto_driver             ; confirm kmto_driver.sys is loaded, get its base
+
+  .sympath srv*C:\Symbols*https://msdl.microsoft.com/download/symbols
+  .sympath+ <path-to-local-pdb-dir-if-any>
+                               ; kmto_driver.sys is built without
+                               ; GenerateDebugInformation in Release, so
+                               ; there is no private PDB to load unless
+                               ; you rebuild Debug|x64 — see build.ps1
+                               ; -Configuration Debug for a debuggable
+                               ; build with public+private symbols.
+
+-------------------------------------------------------------------------
+2. Enable Driver Verifier on kmto_driver.sys BEFORE loading/testing
+-------------------------------------------------------------------------
+Do this from an elevated cmd/PowerShell INSIDE the guest, before running
+load.ps1 -Arm. Driver Verifier catches memory-safety and IRQL bugs the
+driver would otherwise mask; it also makes bugchecks more informative.
+
+  verifier /standard /driver kmto_driver.sys
+  verifier /querysettings           ; confirm it took
+  verifier /query                   ; list currently verified drivers + stats
+
+Reboot is required for Verifier settings to take effect the first time
+you enable it for a driver:
+
+  shutdown /r /t 0
+
+After reboot, load the driver as usual (load.ps1 -Arm) and drive it with
+smoke-test.ps1 -Arm. If Verifier flags a violation it will bugcheck
+immediately with a Verifier-specific stop code (commonly 0xC4
+DRIVER_VERIFIER_DETECTED_VIOLATION, 0xC1 SPECIAL_POOL_DETECTED_MEMORY_
+CORRUPTION, or 0xC9 DRIVER_VERIFIER_IOMANAGER_VIOLATION) rather than
+corrupting memory silently — that is the point.
+
+To turn Verifier off again once you're done (reboot required):
+
+  verifier /reset
+  shutdown /r /t 0
+
+-------------------------------------------------------------------------
+3. Watching the driver load (KmtopFillHandshake / DriverEntry) live
+-------------------------------------------------------------------------
+
+  bp kmto_driver!DriverEntry
+  bp kmto_driver!KmtoDeviceControl
+  g                            ; go; breaks when load.ps1 -Arm starts the
+                               ; service or the first IOCTL arrives
+
+  ; once broken in KmtoDeviceControl:
+  r                            ; dump registers
+  dt kmto_driver!kmto_handshake_request_t poi(rdx)
+                               ; (register holding the IRP/stack may
+                               ; differ by build; use kb / dv to find it)
+  kb                           ; stack trace
+
+-------------------------------------------------------------------------
+4. Live inspection while smoke-test.ps1 is running
+-------------------------------------------------------------------------
+
+  !process 0 0                 ; list all processes — confirm the
+                               ; smoke-test.ps1 / powershell.exe process
+                               ; that opened \\.\KMTO is present and not
+                               ; wedged in a wait state
+  !process <PID> 7             ; full detail incl. thread states for one
+                               ; process (find PID from the list above)
+  !irql                        ; current IRQL on the break-in processor
+  !locks                       ; check for deadlocked kernel locks if a
+                               ; hang is suspected (KMTO_IOCTL_GET_EVENTS
+                               ; and friends should never hold a lock
+                               ; across a blocking wait — if !locks shows
+                               ; one held indefinitely, that's a bug)
+  !qlocks                      ; queued spinlock state (per-CPU ring
+                               ; access in event_ring.c uses spinlocks —
+                               ; check here first for a suspected hang
+                               ; during GET_EVENTS)
+
+-------------------------------------------------------------------------
+5. Bugcheck triage (guest crashed / went to blue screen)
+-------------------------------------------------------------------------
+kd should break in automatically on a bugcheck if the network debug
+connection is up. If it does not break in automatically, or you are
+looking at the memory.dmp / minidump after the fact:
+
+  !analyze -v                  ; the single most useful command — decodes
+                               ; the bugcheck code + parameters, gives a
+                               ; probable-cause guess, and (with symbols)
+                               ; often names the faulting function
+  kb                           ; stack of the crashing thread — look for
+                               ; kmto_driver! frames
+  !thread                      ; details of the crashing thread
+  lm m kmto_driver             ; confirm which build of the driver was
+                               ; loaded (timestamp/base) so you know
+                               ; which .sys / source revision to blame
+  .bugcheck                    ; raw bugcheck code + 4 parameters
+  !kmto_state (n/a)            ; KMTO ships no custom kd extension; there
+                               ; is no !kmto_* command. Inspect
+                               ; kmto_driver!g_KmtoState directly instead:
+  dt kmto_driver!g_KmtoState
+  dt kmto_driver!KMTO_OBSERVER_STATE poi(kmto_driver!g_KmtoState)
+
+Common KMTO-relevant stop codes to expect while testing:
+  0x7E  SYSTEM_THREAD_EXCEPTION_NOT_HANDLED  — unhandled exception in a
+        driver thread (timer DPC in cr4_observer.c is the most likely
+        offender if the sampler is enabled via CONFIGURE)
+  0xD1  DRIVER_IRQL_NOT_LESS_OR_EQUAL         — paged/invalid memory
+        touched at raised IRQL; check any code path that runs inside the
+        sampler DPC or the BugCheck callback (both run at high IRQL by
+        design — they must not touch pageable memory or call blocking
+        APIs)
+  0xC4/0xC1/0xC9                              — Driver Verifier caught
+        something; see section 2. Prefer testing with Verifier ON so
+        these fire instead of silent corruption.
+  0x139 KERNEL_SECURITY_CHECK_FAILURE         — stack buffer overrun
+        (GsDriverEntry / GS cookie); check any fixed-size buffer copies,
+        e.g. RtlCopyMemory of the IOCTL request structs in
+        kmto_driver.c's KmtopHandle* functions.
+
+-------------------------------------------------------------------------
+6. Recovery after a bugcheck
+-------------------------------------------------------------------------
+Do NOT try to "fix and reboot" the same guest disk repeatedly while
+testing an unstable build — revert to the Hyper-V checkpoint taken
+before you started (see ../README.md "Safety") from the HOST:
+
+  Get-VMCheckpoint -VMName WinKDbg
+  Restore-VMCheckpoint -VMName WinKDbg -Name "<checkpoint-name>" -Confirm:$false
+  Start-VM -Name WinKDbg
+
+Then re-attach kd and re-run kernel-test\unload.ps1 before the next
+load.ps1 -Arm, so you're never loading a new build over a service entry
+left behind by a crashed previous run.
+
+-------------------------------------------------------------------------
+7. Detaching cleanly
+-------------------------------------------------------------------------
+
+  qd                           ; quit and detach kd, leave guest running
+  q                            ; quit kd, resume the target if it was
+                               ; suspended by a manual break-in (Ctrl+Break)
