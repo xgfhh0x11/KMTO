@@ -19,9 +19,6 @@ uint32_t get_cpu_features_x86(void);
 // Get CPU features (ARM64)
 uint32_t get_cpu_features_arm64(void);
 
-// Read CR4 register (x86_64, requires kernel mode or special privileges)
-uint64_t read_cr4(void);
-
 // Check SMEP bit in CR4
 bool check_smep_cr4(uint64_t cr4);
 

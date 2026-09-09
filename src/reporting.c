@@ -32,17 +32,24 @@ void report_cleanup(report_context_t* ctx) {
     }
 }
 
+// NOTE: this is a static reference diagram, not derived from `telemetry` or
+// from the current run. It illustrates the mitigation model KMTO's scripted
+// scenarios are based on, not observed control flow. The `telemetry`
+// parameter is accepted for API symmetry with the other report_generate_*
+// functions and to leave room for a future per-run variant, but is not read.
 void report_generate_control_flow_diagram(report_context_t* ctx,
                                            telemetry_context_t* telemetry,
                                            const char* filename) {
     if (!ctx || !filename) return;
-    
+    (void)telemetry;
+
     char path[512];
     snprintf(path, sizeof(path), "%s/%s", ctx->output_dir, filename);
-    
+
     FILE* f = fopen(path, "w");
     if (!f) return;
-    
+
+    fprintf(f, "// STATIC TEMPLATE: fixed reference diagram, not derived from this run's telemetry.\n");
     fprintf(f, "digraph ControlFlow {\n");
     fprintf(f, "  rankdir=LR;\n");
     fprintf(f, "  node [shape=box];\n");
@@ -51,29 +58,36 @@ void report_generate_control_flow_diagram(report_context_t* ctx,
     fprintf(f, "  \"PAC Verify\" -> \"Execute\" [label=\"Success\"];\n");
     fprintf(f, "  \"PAC Verify\" -> \"Fault\" [label=\"Failure\"];\n");
     fprintf(f, "}\n");
-    
+
     fclose(f);
 }
 
+// NOTE: this is a static reference table, not derived from `telemetry` or
+// from the current run. It documents the mitigation model KMTO's scripted
+// scenarios are based on, not observed accesses. The `telemetry` parameter
+// is accepted for API symmetry with the other report_generate_* functions
+// and to leave room for a future per-run variant, but is not read.
 void report_generate_memory_access_matrix(report_context_t* ctx,
                                           telemetry_context_t* telemetry,
                                           const char* filename) {
     if (!ctx || !filename) return;
-    
+    (void)telemetry;
+
     char path[512];
     snprintf(path, sizeof(path), "%s/%s", ctx->output_dir, filename);
-    
+
     FILE* f = fopen(path, "w");
     if (!f) return;
-    
-    fprintf(f, "=== Memory Access Matrix ===\n\n");
+
+    fprintf(f, "=== Memory Access Matrix (STATIC TEMPLATE) ===\n");
+    fprintf(f, "=== Fixed reference table, not derived from this run's telemetry ===\n\n");
     fprintf(f, "Source Domain -> Target Domain | Access Type | Result\n");
     fprintf(f, "--------------------------------|-------------|--------\n");
     fprintf(f, "USER -> KERNEL                  | COPY_FROM   | ALLOWED (via copy_from_user)\n");
     fprintf(f, "KERNEL -> USER                  | DIRECT      | BLOCKED (SMAP)\n");
     fprintf(f, "KERNEL -> USER                  | EXECUTE     | BLOCKED (SMEP)\n");
     fprintf(f, "KERNEL -> KERNEL                | EXECUTE     | ALLOWED (if PAC verified)\n");
-    
+
     fclose(f);
 }
 
@@ -145,6 +159,10 @@ void report_generate_test_outcomes(report_context_t* ctx,
         fprintf(f, "  Access Type: %d\n", outcome->access_type);
         fprintf(f, "  PAC Verified: %s\n", outcome->pac_verified ? "YES" : "NO");
         fprintf(f, "  Timestamp: %llu ns\n", (unsigned long long)outcome->timestamp);
+        fprintf(f, "  Config: SMEP=%s SMAP=%s PAC=%s\n",
+                outcome->config.smep_enabled ? "ON" : "OFF",
+                outcome->config.smap_enabled ? "ON" : "OFF",
+                outcome->config.pac_enabled ? "ON" : "OFF");
         fprintf(f, "\n");
     }
     
@@ -234,7 +252,11 @@ void report_generate_json(report_context_t* ctx,
         fprintf(f, "    {\n");
         fprintf(f, "      \"fault_type\": %d,\n", outcome->fault_type);
         fprintf(f, "      \"fault_address\": \"0x%016llx\",\n", (unsigned long long)outcome->fault_address);
-        fprintf(f, "      \"pac_verified\": %s\n", outcome->pac_verified ? "true" : "false");
+        fprintf(f, "      \"pac_verified\": %s,\n", outcome->pac_verified ? "true" : "false");
+        fprintf(f, "      \"config\": { \"smep\": %s, \"smap\": %s, \"pac\": %s }\n",
+                outcome->config.smep_enabled ? "true" : "false",
+                outcome->config.smap_enabled ? "true" : "false",
+                outcome->config.pac_enabled ? "true" : "false");
         fprintf(f, "    }%s\n", (i < outcome_count - 1) ? "," : "");
     }
     fprintf(f, "  ]\n");

@@ -144,20 +144,15 @@ uint32_t get_cpu_features_arm64(void) {
     return features;
 }
 
-uint64_t read_cr4(void) {
-#ifdef _WIN32
-    __try {
-        return __readcr4();
-    } __except(EXCEPTION_EXECUTE_HANDLER) {
-        return 0;
-    }
-#elif __linux__
-    // In Linux user mode, we can't read CR4 directly
-    // This would require kernel module or special privileges
-    return 0;
-#endif
-}
-
+// NOTE: check_smep_cr4()/check_smap_cr4() are not currently called anywhere
+// in this codebase. Their only prior caller was a commented-out CR4 read in
+// detect_mitigations() above (guarded out for user-mode safety on Windows).
+// A former read_cr4() wrapper around that same commented-out path was
+// removed entirely: it was dead code that also broke the MinGW build (it
+// depended on MSVC-only __try/__except + <intrin.h>, neither supported by
+// the MinGW-w64 toolchain the Makefile's Windows path invokes). These two
+// bit-decoders are kept as documented extension points for a future
+// privileged CR4 source (e.g. the Windows kernel driver).
 bool check_smep_cr4(uint64_t cr4) {
     // SMEP is bit 20 of CR4
     return (cr4 & (1ULL << 20)) != 0;
@@ -188,6 +183,7 @@ bool detect_pac_arm64(void) {
     return false;
 }
 
+// NOTE: not currently called anywhere in this codebase.
 uint64_t get_pac_key(pac_key_domain_t domain) {
     // Getting PAC keys requires kernel mode or special system calls
     // This is a placeholder - actual implementation would need

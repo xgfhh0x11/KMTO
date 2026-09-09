@@ -1,8 +1,8 @@
 # KMTO — Kernel Mitigation Telemetry Observatory — Build & Verification
 
-> *Last updated: 2026-05-14 — post P0–P3 fix pass.*
+> *Last updated: 2026-09-09.*
 
-> *Quality gate for the HBO NL portfolio. This file answers:
+> *This file answers:
 > "Is this project buildable, runnable, and behaving as documented?"*
 
 ## 1. Build
@@ -33,13 +33,13 @@
   - `bin/kmto_cli.exe` — Windows-only handshake console (links `user32`, `kernel32`, `ole32`, `advapi32`).
   - `obj/*.o` — intermediate object files.
   - Under CMake: `build/bin/kmto[.exe]` and (on Windows) `build/bin/kmto_cli.exe`.
-  - `driver/bin/Release/kmto_driver.sys` — Windows kernel driver (built from `driver/kmto_driver.vcxproj`, now committed as of 2026-05-14).
+  - `driver/bin/Release/kmto_driver.sys` — Windows kernel driver (built from `driver/kmto_driver.vcxproj`, committed in this repo).
 
 ### 1.2 Alternative build paths
 Two parallel build mechanisms ship in the tree:
 - **Makefile** (`Makefile`): GNU-make-driven, gates the Windows CLI on `OS=Windows_NT`. Adds `make test` and `make matrix` convenience targets. Linux installs to `/usr/local/bin` via `make install`.
 - **CMake** (`CMakeLists.txt`): `cmake_minimum_required(VERSION 3.16)`, C11, builds the `kmto` target everywhere and gates the `kmto_cli` target on `WIN32`. Sets `RUNTIME_OUTPUT_DIRECTORY` to `${CMAKE_BINARY_DIR}/bin`.
-- **MSBuild / Visual Studio** (driver only): README documents `devenv.com kmto_driver.vcxproj /Build "Release|x64"`. As of 2026-05-14, `driver/kmto_driver.vcxproj` and `driver/kmto_driver.vcxproj.filters` are committed, so this command works from a clean clone.
+- **MSBuild / Visual Studio** (driver only): README documents `devenv.com kmto_driver.vcxproj /Build "Release|x64"`. `driver/kmto_driver.vcxproj` and `driver/kmto_driver.vcxproj.filters` are committed, so this command works from a clean clone.
 
 The two C-level build paths are mutually consistent: both compile the same six source files for `kmto` (`main.c`, `mitigation_detector.c`, `telemetry.c`, `test_harness.c`, `config_manager.c`, `reporting.c`) and the same single source for `kmto_cli` (`src/kmto_cli.c`). The Makefile additionally passes `-Wall -Wextra -O2 -g`; CMake relies on defaults plus `-D__linux__` / `-D_WIN32`.
 
@@ -139,7 +139,7 @@ Windows CLI (without the driver):
 ```
 
 ### 2.4 Automated verification
-**Present (added 2026-06-10).** A `pytest` suite under `tests/` plus a
+**Present.** A `pytest` suite under `tests/` plus a
 GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 - `tests/test_structure.py` — asserts every documented header/source
@@ -166,9 +166,9 @@ smoke runs.
 ## 3. Alternatives & improvements
 
 ### 3.1 Known fragilities
-- ~~**Driver build is documented but unbuildable from this repo.** Both `README.md` and `TECHNICAL_DEEP_DIVE.md` (Appendix A.2) instruct the user to build `driver/kmto_driver.vcxproj` with `devenv.com`, but `driver/` contains only `kmto_driver.c`. The `.vcxproj` is absent. A reviewer following the documentation literally will hit a "file not found" error from MSBuild. Workaround: generate a fresh KMDF driver project in Visual Studio, add `kmto_driver.c`, set toolset to `WindowsKernelModeDriver10.0`, link `ntstrsafe.lib`.~~ **RESOLVED 2026-05-14** — `driver/kmto_driver.vcxproj` and `driver/kmto_driver.vcxproj.filters` are now committed alongside `kmto_driver.c`; the documented `devenv.com kmto_driver.vcxproj /Build "Release|x64"` invocation now works from a clean clone.
-- **Detector trusts CPUID over CR4.** `mitigation_detector.c` explicitly comments that CR4 reads are gated out for user-mode safety; the detector falls back to "supported implies presumed enabled." This means the *enablement* dimension is an inference, not an observation, on bare metal where the bootloader could have cleared CR4[20]/CR4[21]. TECHNICAL_DEEP_DIVE §10.1 acknowledges this; portfolio reviewers may take it as a limitation.
-- ~~**No automated tests.** Determinism is claimed (TECHNICAL_DEEP_DIVE §6) but not enforced. There is no regression harness to catch silent output drift between commits.~~ **PARTIALLY RESOLVED 2026-06-10** — `tests/` (pytest) + CI now assert structure and that `-t all` produces valid output on every push; a committed expected-output *fixture diff* for full determinism enforcement is still a worthwhile follow-up.
+- **Driver build**: `driver/kmto_driver.vcxproj` and `driver/kmto_driver.vcxproj.filters` are committed alongside `kmto_driver.c`; the documented `devenv.com kmto_driver.vcxproj /Build "Release|x64"` invocation works from a clean clone (not independently re-verified in this environment — no WDK/Visual Studio available here).
+- **Detector trusts CPUID over CR4.** `mitigation_detector.c` explicitly comments that CR4 reads are gated out for user-mode safety; the detector falls back to "supported implies presumed enabled." This means the *enablement* dimension is an inference, not an observation, on bare metal where the bootloader could have cleared CR4[20]/CR4[21]. TECHNICAL_DEEP_DIVE §10.1 acknowledges this; reviewers may take it as a limitation.
+- **Automated tests exist but are structural/smoke-level only.** `tests/` (pytest) + CI assert structure and that `-t all` produces valid output on every push; a committed expected-output *fixture diff* for full determinism enforcement, and content-level assertions (e.g. that `results.json` keys match the documented shape), are still open follow-ups.
 - **`MAX_OUTCOMES = 100` is a hard cap in `main.c`.** The matrix run (`8 configs * 5 tests = 40 outcomes`) fits, and `-t all` produces 8 outcomes, but extending the matrix or adding scenarios without raising this constant will silently truncate.
 - **CMake build does not propagate Makefile warning flags.** `-Wall -Wextra` are Makefile-only. A CMake build will compile with default warnings (usually fewer), which can mask issues the Makefile would catch. The CMake path also lacks the explicit Windows libs that the Makefile passes (`-luser32 -lkernel32 -lole32 -ladvapi32`), but it adds `kernel32 user32 advapi32` via `target_link_libraries` — `ole32` is missing on the CMake path, so any CLI code that pulls `ole32` symbols would fail to link there.
 - **PAC scenarios produce zero events on x86_64 hosts.** This is by design (HWCAP `paca` is absent), but a reviewer running on Linux x86_64 will see `PAC Failures: 0`, `PAC Successes: 0` and could mistake it for a bug.
@@ -182,8 +182,8 @@ smoke runs.
 - If `bin/kmto` produces an empty `results.json`, check that the output directory exists and is writable; the `report_init` path will fail silently if not.
 
 ### 3.3 Roadmap
-- **Short-term (≤1 day)**: (a) ~~Commit a minimal `driver/kmto_driver.vcxproj`...~~ **DONE 2026-05-14**. (b) Add a 20-line shell script `scripts/verify.sh` ... diffs against a committed expected-output fixture for x86_64. *(Still open — `tests/test_output.py` now asserts validity but not a byte-for-byte fixture diff.)* (c) ~~Promote `make test` to actually assert presence of the six output files (currently it only runs the binary).~~ **DONE 2026-06-10** — `tests/test_output.py` asserts `-t all` produces output and valid JSON (stronger than presence-only).
-- **Medium-term (≤1 week)**: (a) ~~Add a `tests/` directory ... unit tests~~ **DONE 2026-06-10** — `tests/` (pytest) added; structure + output-validation. CUnit/Greatest C-level unit tests for `telemetry_log_*` / `config_manager_create_matrix` remain a worthwhile deepening. (b) ~~Add a GitHub Actions workflow with Linux + Windows matrix jobs that runs the build ... and uploads `output/` as a CI artifact.~~ **DONE 2026-06-10** — `.github/workflows/ci.yml` (Linux gcc/clang + Windows MSVC; uploads `ci_output/`). (c) Mirror the Makefile's `-Wall -Wextra` into `CMakeLists.txt` and add `-Werror` to CI builds. *(Still open.)* (d) Add `ole32` to the CMake `kmto_cli` link line for parity with the Makefile. *(Still open.)*
+- **Short-term (≤1 day)**: (a) `driver/kmto_driver.vcxproj` is committed. (b) Add a 20-line shell script `scripts/verify.sh` that diffs against a committed expected-output fixture for x86_64. *(Still open — `tests/test_output.py` asserts validity but not a byte-for-byte fixture diff.)* (c) `tests/test_output.py` asserts `-t all` produces output and valid JSON (stronger than the old presence-only `make test` check).
+- **Medium-term (≤1 week)**: (a) `tests/` (pytest) is present: structure + output-validation. CUnit/Greatest C-level unit tests for `telemetry_log_*` / `config_manager_create_matrix` remain a worthwhile deepening. (b) `.github/workflows/ci.yml` runs Linux (gcc/clang) build + `-t all` + pytest, and a Windows MSVC build; uploads `ci_output/`. (c) Mirror the Makefile's `-Wall -Wextra` into `CMakeLists.txt` and add `-Werror` to CI builds. *(Still open.)* (d) Add `ole32` to the CMake `kmto_cli` link line for parity with the Makefile. *(Still open.)*
 - **Long-term**: (a) Implement the kernel-side fault provocation in the driver so enforcement claims become measurements rather than inferences (TECHNICAL_DEEP_DIVE §10.2). (b) Add a sampling layer for high-frequency event paths (§10.4). (c) Add the future-surface observers listed in TECHNICAL_DEEP_DIVE §11 (CET, KCFI, FineIBT, MTE, IOMMU). (d) Publish a stable JSON schema for `results.json` so downstream consumers can pin to it.
 
 ## 4. Sanity check
@@ -191,9 +191,9 @@ smoke runs.
 | Check | Status | Notes |
 |-------|--------|-------|
 | README documents build | ✅ | README §"Build" gives Makefile, CMake, and Windows-driver commands; usage and all eight test types are listed. |
-| Build files present | ✅ | `Makefile` and `CMakeLists.txt` present and consistent. As of 2026-05-14, `driver/kmto_driver.vcxproj` and `driver/kmto_driver.vcxproj.filters` are also committed, so the Windows-driver path referenced by the README and TECHNICAL_DEEP_DIVE A.2 is now buildable from a clean clone. |
+| Build files present | ✅ | `Makefile` and `CMakeLists.txt` present and consistent. `driver/kmto_driver.vcxproj` and `driver/kmto_driver.vcxproj.filters` are also committed, so the Windows-driver path referenced by the README and TECHNICAL_DEEP_DIVE A.2 is buildable from a clean clone (not independently re-verified in this environment). |
 | Build files internally consistent | ✅ | Makefile and CMakeLists list the same six core sources and gate `kmto_cli` on Windows the same way. Minor: CMake link line omits `ole32` that Makefile includes — flagged in §3.1. |
-| Source structure matches README | ✅ | All eight headers in `include/` and all seven `.c` files in `src/` match the README's File-layout block (updated 2026-06-10 to add `kmto_kernel_state.h` and the `driver/cr4_observer.c` / `event_ring.c` sources); enforced by `tests/test_structure.py`. |
+| Source structure matches README | ✅ | All eight headers in `include/` and all seven `.c` files in `src/` match the README's File-layout block (including `kmto_kernel_state.h` and the `driver/cr4_observer.c` / `event_ring.c` sources); enforced by `tests/test_structure.py`. |
 | Tests exist | ✅ | `tests/` (pytest): `test_structure.py` (source-tree/Makefile sync), `test_output.py` (`-t all` produces valid JSON output). 19 passed / 3 skipped locally (output rows skip without a build). |
 | Test invocation documented | ✅ | README File-layout names `tests/` and `.github/workflows/ci.yml`; §2.4 documents `python -m pytest tests/ -v`. CI runs build + `-t all` + pytest on Linux (gcc/clang) and a build on Windows. |
 | Output artifacts named in build files | ✅ | `Makefile` declares `TARGET = $(BIN_DIR)/kmto` and `CLI_TARGET = $(BIN_DIR)/kmto_cli.exe`; `CMakeLists.txt` sets `RUNTIME_OUTPUT_DIRECTORY` to `${CMAKE_BINARY_DIR}/bin` for both targets. Driver output (`driver/bin/Release/kmto_driver.sys`) is named in the README but not produced by any build file in-tree. |

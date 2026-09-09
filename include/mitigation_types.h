@@ -55,19 +55,6 @@ typedef enum {
     PAC_KEY_B   // Data pointer key
 } pac_key_domain_t;
 
-// Test outcome
-typedef struct {
-    fault_type_t fault_type;
-    uint64_t fault_address;
-    memory_domain_t source_domain;
-    memory_domain_t target_domain;
-    access_type_t access_type;
-    bool pac_verified;
-    uint64_t timestamp;
-    uint32_t call_stack_depth;
-    uint64_t call_stack[16];
-} test_outcome_t;
-
 // Mitigation configuration
 typedef struct {
     uint32_t enabled_mitigations;
@@ -81,6 +68,25 @@ typedef struct {
     uint64_t pac_key_a;
     uint64_t pac_key_b;
 } mitigation_config_t;
+
+// Test outcome
+typedef struct {
+    fault_type_t fault_type;
+    uint64_t fault_address;
+    memory_domain_t source_domain;
+    memory_domain_t target_domain;
+    access_type_t access_type;
+    bool pac_verified;
+    uint64_t timestamp;
+    uint32_t call_stack_depth;
+    uint64_t call_stack[16];
+    // Mitigation configuration active when this outcome was produced.
+    // Populated by test_harness_run() from the harness's current config
+    // (see test_harness_set_config()) so that matrix-mode (-m) rows can
+    // be attributed back to the SMEP/SMAP/PAC combination that produced
+    // them, instead of relying on the caller to track it separately.
+    mitigation_config_t config;
+} test_outcome_t;
 
 #ifdef __cplusplus
 }

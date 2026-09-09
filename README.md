@@ -42,7 +42,11 @@ behaving as designed on this build, on this CPU?"*
   DOT outputs suitable for inclusion in mitigation-assurance reports.
 - **Optional Windows driver + CLI** — A KMDF-style driver
   (`kmto_driver.sys`) and a console front-end (`kmto_cli.exe`)
-  demonstrate the same telemetry flow with a real kernel handshake.
+  demonstrate a real kernel handshake (CR4/MSR snapshot, event-ring
+  drain, stats) over their own IOCTL protocol. This is a separate code
+  path from the main `kmto` scenario runner above — `kmto` never talks
+  to the driver, and the driver does not back the `-t`/`-m` telemetry
+  described here.
 
 ## Build
 
@@ -229,8 +233,8 @@ Each run produces, under the chosen output directory:
 | `summary.md`                  | Markdown   | Human-readable summary of the same data          |
 | `results.json`                | JSON       | Machine-parseable run record                     |
 | `test_outcomes.txt`           | text       | Per-test outcome rows                            |
-| `control_flow.dot`            | Graphviz   | Control-flow observation diagram                 |
-| `memory_access_matrix.txt`    | text       | Source/target domain × access-type matrix        |
+| `control_flow.dot`            | Graphviz   | Static reference control-flow diagram (fixed template illustrating the mitigation model; not derived from this run's telemetry) |
+| `memory_access_matrix.txt`    | text       | Static reference source/target domain x access-type table (fixed template; not derived from this run's telemetry) |
 
 ## Platform support
 

@@ -1,8 +1,8 @@
 ---
 title: "KMTO — Kernel Mitigation Telemetry Observatory"
 subtitle: "A defensive observation framework for hardware-assisted kernel mitigations"
-author: "Tyler (HBO NL Application Portfolio)"
-date: "2026-05-14"
+author: "Tyler"
+date: "2026-09-09"
 keywords: [kernel security, SMEP, SMAP, PAC, CFG, KASLR, KPTI, telemetry, mitigation assurance, defensive engineering]
 ---
 
@@ -41,9 +41,12 @@ presence and enablement of SMEP, SMAP, PAC, CFG/KCFG, KASLR, KPTI,
 VBS, and HyperGuard on a running system; exercises controlled
 scenarios that should engage each mitigation; and produces
 structured telemetry classifying every fault, control-flow event,
-and memory-access attempt that results. A Windows KMDF-style
-driver and a console front-end demonstrate the same telemetry flow
-with a real kernel handshake. The framework is observation-only: it
+and memory-access attempt that results. A separate, optional Windows
+KMDF-style driver and console front-end demonstrate a real kernel
+handshake (CR4/MSR snapshot, event-ring drain, stats) over their own
+IOCTL protocol; this driver/CLI pair is a distinct code path and is
+not wired into the `kmto` scenario runner's `-t`/`-m` telemetry
+described above. The framework is observation-only: it
 contains no exploitation primitives, no privilege-escalation paths,
 and no control-flow-hijack code. Its contribution is the
 *systematic, reproducible, machine-parseable evidence* a defender
@@ -705,8 +708,8 @@ A run produces six files under the output directory:
 | `summary.md`                  | Markdown   | Report inclusion (PR, ticket)                  |
 | `results.json`                | JSON       | CI ingest, dashboard, regression diff          |
 | `test_outcomes.txt`           | text       | Per-scenario detailed outcome rows             |
-| `control_flow.dot`            | Graphviz   | Diagram for documentation                      |
-| `memory_access_matrix.txt`    | text       | Source/target domain × access-type cross-table |
+| `control_flow.dot`            | Graphviz   | Static reference diagram for documentation (fixed template, not derived from this run) |
+| `memory_access_matrix.txt`    | text       | Static reference source/target domain x access-type cross-table (fixed template, not derived from this run) |
 
 The JSON output is the canonical machine-readable artifact:
 

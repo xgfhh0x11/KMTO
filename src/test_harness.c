@@ -92,7 +92,14 @@ test_outcome_t test_harness_run(test_harness_context_t* ctx, test_type_t test_ty
             outcome.fault_type = FAULT_UNKNOWN;
             break;
     }
-    
+
+    // Attribute this outcome to the mitigation configuration that was
+    // active when it was produced (matters for matrix mode, where each
+    // row swaps the config via test_harness_set_config()).
+    if (ctx->config) {
+        outcome.config = *ctx->config;
+    }
+
     return outcome;
 }
 
@@ -343,6 +350,11 @@ test_outcome_t test_mitigation_interaction(test_harness_context_t* ctx) {
     return outcome;
 }
 
+// NOTE: not currently called anywhere in this codebase (also not exercised
+// by report_generate_config_comparison(), which likewise has no caller).
+// It discards outcome1/outcome2 rather than reporting them — wiring it up
+// would need a report_generate_config_comparison() call added here, which
+// is left as a documented gap rather than done speculatively.
 void test_harness_compare_configs(test_harness_context_t* ctx,
                                   mitigation_config_t* config1,
                                   mitigation_config_t* config2,
