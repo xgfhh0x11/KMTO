@@ -523,6 +523,12 @@ kmto_run_demo(kmto_runtime_state_t* state)
         kmto_print_cr4_snapshot(&snap);
     }
 
+    printf("\n== Resetting rings + counters for a clean measurement window ==\n");
+    if (kmto_ioctl_reset(state->device)) {
+        printf("  reset OK (prior lifetime counters cleared; the deltas below are\n"
+               "  measured from zero over this run, not since driver load)\n");
+    }
+
     printf("\n== Enabling sampler + bugcheck callback (1 Hz) ==\n");
     if (kmto_ioctl_configure(state->device, KMTO_CFG_ALL, 1000, &cfg)) {
         printf("  active_mask=0x%08x  interval=%ums\n",
