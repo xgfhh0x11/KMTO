@@ -402,6 +402,24 @@ KmtopPerCpuSamplerDpc(
     // Aggregate counter (PASSIVE-only write would race against the
     // sampler; use InterlockedIncrement to be safe).
     InterlockedIncrement64((volatile LONG64 *)&g_KmtoState.Stats.cr4_samples);
+
+    // One MSR_SAMPLE per cycle carrying the sampled MSR set packed into the
+    // event's data fields (data[0..4] = EFER, FEATURE_CONTROL, PAT, FS_BASE,
+    // GS_BASE), rather than one event per MSR. Reuses the values already read
+    // above and adds GS_BASE. Keeps ring pressure at ~2x while making
+    // msr_samples and the MSR event stream reflect the sampler's MSR reads
+    // (previously the periodic path emitted only CR4_SAMPLE, so msr_samples
+    // stayed 0 and no MSR_SAMPLE events were ever produced).
+    {
+        ULONG64 msr[5];
+        msr[0] = data[1];  // IA32_EFER
+        msr[1] = data[2];  // IA32_FEATURE_CONTROL
+        msr[2] = data[3];  // IA32_PAT
+        msr[3] = data[4];  // IA32_FS_BASE
+        msr[4] = __readmsr(KMTO_MSR_IA32_GS_BASE);
+        KmtoRingWrite(&g_KmtoState, cpu, KMTO_EVT_MSR_SAMPLE, msr);
+        InterlockedIncrement64((volatile LONG64 *)&g_KmtoState.Stats.msr_samples);
+    }
 }
 
 // -----------------------------------------------------------------

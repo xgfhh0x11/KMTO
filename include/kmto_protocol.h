@@ -147,7 +147,7 @@ typedef struct kmto_cr4_snapshot {
 enum {
     KMTO_EVT_NONE         = 0,
     KMTO_EVT_CR4_SAMPLE   = 1,   // data[0..4] = CR4 + EFER + FEATURE_CONTROL + PAT + FS_BASE/GS_BASE-packed
-    KMTO_EVT_MSR_SAMPLE   = 2,   // data[0] = MSR index, data[1] = value
+    KMTO_EVT_MSR_SAMPLE   = 2,   // periodic sampler: data[0..4] = EFER, FEATURE_CONTROL, PAT, FS_BASE, GS_BASE (one per cycle)
     KMTO_EVT_BUGCHECK     = 3,   // data[0] = bugcheck code, data[1..4] = bugcheck params
     KMTO_EVT_DRIVER_INIT  = 4,   // emitted once at DriverEntry
     KMTO_EVT_DRIVER_STOP  = 5    // emitted at unload
