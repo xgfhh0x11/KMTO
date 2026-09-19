@@ -55,9 +55,23 @@ kmto_enable_utf8(void)
     }
 }
 
+static bool
+kmto_stdout_is_console(void)
+{
+    return GetFileType(GetStdHandle(STD_OUTPUT_HANDLE)) == FILE_TYPE_CHAR;
+}
+
 static void
 kmto_clear_screen(void)
 {
+    // Only emit the clear-screen / cursor-home sequence to a real console.
+    // When stdout is redirected (piped, captured via `!`, or written to a
+    // file), ESC[2J ESC[H would jump the cursor and overwrite instead of
+    // appending, garbling captured output. In that case do nothing so the
+    // output flows linearly and can be captured cleanly.
+    if (!kmto_stdout_is_console()) {
+        return;
+    }
     printf("\x1b[2J\x1b[H");
 }
 
@@ -485,16 +499,89 @@ kmto_handle_choice(int choice, kmto_runtime_state_t* state)
 }
 
 // =================================================================
+// Non-interactive demo (linear output, capture/GIF-friendly)
+// =================================================================
+
+static void
+kmto_run_demo(kmto_runtime_state_t* state)
+{
+    kmto_stats_t s0, s1;
+    kmto_cr4_snapshot_t snap;
+    kmto_configure_response_t cfg;
+    kmto_event_t events[32];
+    uint32_t count = 0, lost = 0, i;
+
+    kmto_banner();
+    kmto_show_status_panel(state);
+    if (!state->driver_ready) {
+        printf("Driver offline; nothing to demonstrate. Load the KMTO driver first.\n");
+        return;
+    }
+
+    printf("== CR4 / MSR snapshot (driver-side authoritative read) ==\n");
+    if (kmto_ioctl_get_cr4(state->device, &snap)) {
+        kmto_print_cr4_snapshot(&snap);
+    }
+
+    printf("\n== Enabling sampler + bugcheck callback (1 Hz) ==\n");
+    if (kmto_ioctl_configure(state->device, KMTO_CFG_ALL, 1000, &cfg)) {
+        printf("  active_mask=0x%08x  interval=%ums\n",
+               cfg.active_mask, cfg.sampling_interval_ms);
+    }
+
+    kmto_ioctl_get_stats(state->device, &s0);
+    printf("\n== Sampling for 5 seconds ==\n");
+    Sleep(5000);
+    kmto_ioctl_get_stats(state->device, &s1);
+
+    printf("\n== Telemetry stats (after 5s) ==\n");
+    kmto_print_stats(&s1);
+    printf("  Delta over 5s: +%llu events (+%llu CR4, +%llu MSR), lost=%llu\n",
+           (unsigned long long)(s1.total_events_written - s0.total_events_written),
+           (unsigned long long)(s1.cr4_samples - s0.cr4_samples),
+           (unsigned long long)(s1.msr_samples - s0.msr_samples),
+           (unsigned long long)s1.total_lost_events);
+
+    printf("\n== Draining CPU 0 event ring ==\n");
+    if (kmto_ioctl_get_events(state->device, 0, 32, events, &count, &lost)) {
+        printf("  %u events (lost since last drain: %u)\n", count, lost);
+        for (i = 0; i < count && i < 16; i++) {
+            kmto_print_event_row(&events[i]);
+        }
+    }
+    printf("\n== demo complete ==\n");
+}
+
+// =================================================================
 // main
 // =================================================================
 
 int
-main(void)
+main(int argc, char** argv)
 {
     kmto_runtime_state_t state = {0};
+    bool demo = false;
+    int i;
+
+    for (i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--demo") == 0 || strcmp(argv[i], "-d") == 0) {
+            demo = true;
+        }
+    }
 
     kmto_enable_utf8();
     SetConsoleTitleA("KMTO - Kernel Mitigation Telemetry Observatory");
+
+    if (demo) {
+        // Linear, non-interactive run: connect, exercise the telemetry path,
+        // print everything top-to-bottom with no screen clears. Suitable for
+        // piping / capture (kmto_cli --demo > out.txt) and for recording a GIF.
+        (void)kmto_connect_driver(&state);
+        kmto_run_demo(&state);
+        if (state.device) CloseHandle(state.device);
+        return 0;
+    }
+
     kmto_show_intro();
 
     if (!kmto_connect_driver(&state)) {
