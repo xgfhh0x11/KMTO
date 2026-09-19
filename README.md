@@ -13,6 +13,16 @@ Its purpose is to give a defender or a kernel engineer a reproducible
 way to answer the question *"are the mitigations I configured actually
 behaving as designed on this build, on this CPU?"*
 
+## Demo
+
+Live capture of `kmto_cli --demo` running against the loaded kernel driver
+on a bare Windows kernel-debug guest: the handshake reports the driver
+online, an authoritative driver-side CR4/MSR snapshot shows SMEP/SMAP/PCIDE
+and EFER NXE/LMA, then the periodic per-CPU sampler is enabled and drained —
+paired `CR4_SAMPLE`/`MSR_SAMPLE` events, zero lost over the measurement window.
+
+![KMTO live telemetry demo](docs/kmto_demo.gif)
+
 ## Mitigation surfaces observed
 
 | Mitigation | Architecture | Observation                                                            |
