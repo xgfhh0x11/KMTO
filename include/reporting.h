@@ -3,6 +3,7 @@
 
 #include "mitigation_types.h"
 #include "telemetry.h"
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 

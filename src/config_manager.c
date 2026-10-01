@@ -1,3 +1,10 @@
+/* strdup() is POSIX; glibc hides it under a strict -std=c11 compile unless a
+ * feature-test macro is set before any system header. Without the declaration
+ * the compiler assumes an int return and truncates the pointer on LP64. */
+#if !defined(_WIN32) && !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include "config_manager.h"
 #include <stdlib.h>
 #include <string.h>

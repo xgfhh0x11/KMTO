@@ -1,24 +1,80 @@
+/* strdup() is POSIX; glibc hides it under a strict -std=c11 compile unless a
+ * feature-test macro is set before any system header. Without the declaration
+ * the compiler assumes an int return and truncates the pointer on LP64. */
+#if !defined(_WIN32) && !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include "reporting.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
+#include <errno.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#define KMTO_MKDIR(p) _mkdir(p)
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#define KMTO_MKDIR(p) mkdir((p), 0755)
+#endif
 
 struct report_context {
     char* output_dir;
     bool initialized;
 };
 
+// Create `path` and any missing parent directories (mkdir -p semantics).
+// Returns 0 on success (or if it already exists), -1 otherwise. Treats both
+// '/' and '\\' as separators so a Windows-style path also works.
+static int ensure_directory(const char* path) {
+    if (!path || !*path) return -1;
+
+    char buf[512];
+    size_t len = strlen(path);
+    if (len >= sizeof(buf)) return -1;
+    memcpy(buf, path, len + 1);
+
+    for (char* p = buf + 1; *p; ++p) {
+        if (*p == '/' || *p == '\\') {
+            char sep = *p;
+            *p = '\0';
+            if (KMTO_MKDIR(buf) != 0 && errno != EEXIST) return -1;
+            *p = sep;
+        }
+    }
+    if (KMTO_MKDIR(buf) != 0 && errno != EEXIST) return -1;
+    return 0;
+}
+
 report_context_t* report_init(const char* output_dir) {
     report_context_t* ctx = (report_context_t*)calloc(1, sizeof(report_context_t));
     if (!ctx) return NULL;
-    
+
     if (output_dir) {
         ctx->output_dir = strdup(output_dir);
     } else {
         ctx->output_dir = strdup(".");
     }
-    
+
+    if (!ctx->output_dir) {
+        free(ctx);
+        return NULL;
+    }
+
+    // Reports are written with fopen(..., "w"), which cannot create missing
+    // parent directories; create the output directory up front so a caller
+    // passing a not-yet-existing -o DIR actually gets files written.
+    if (ensure_directory(ctx->output_dir) != 0) {
+        fprintf(stderr, "[!] could not create output directory '%s': %s\n",
+                ctx->output_dir, strerror(errno));
+        free(ctx->output_dir);
+        free(ctx);
+        return NULL;
+    }
+
     ctx->initialized = true;
     return ctx;
 }

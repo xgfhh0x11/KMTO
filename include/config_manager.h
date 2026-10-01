@@ -2,6 +2,7 @@
 #define CONFIG_MANAGER_H
 
 #include "mitigation_types.h"
+#include <stddef.h>
 #include <stdbool.h>
 
 #ifdef __cplusplus

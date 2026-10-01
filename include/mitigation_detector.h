@@ -2,6 +2,8 @@
 #define MITIGATION_DETECTOR_H
 
 #include "mitigation_types.h"
+#include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {

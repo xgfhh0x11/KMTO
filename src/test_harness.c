@@ -1,3 +1,9 @@
+/* clock_gettime / CLOCK_MONOTONIC are POSIX; glibc hides them under a strict
+ * -std=c11 compile unless a feature-test macro is set before any system header. */
+#if !defined(_WIN32) && !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include "test_harness.h"
 #include <stdlib.h>
 #include <string.h>
