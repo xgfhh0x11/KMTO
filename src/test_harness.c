@@ -120,8 +120,7 @@ test_outcome_t test_user_kernel_boundary(test_harness_context_t* ctx) {
     // This is a conceptual test - we observe the boundary without crossing it
     
     uint64_t user_addr = 0x00007fff00000000ULL; // Typical user space address
-    uint64_t kernel_addr = 0xffff800000000000ULL; // Typical kernel space address
-    
+
     // Log memory access attempt (simulated)
     telemetry_log_memory_access(ctx->telemetry,
                                DOMAIN_USER,
@@ -326,7 +325,6 @@ test_outcome_t test_mitigation_interaction(test_harness_context_t* ctx) {
     
     // Test how multiple mitigations interact
     bool smep = ctx->config && ctx->config->smep_enabled;
-    bool smap = ctx->config && ctx->config->smap_enabled;
     bool pac = ctx->config && ctx->config->pac_enabled;
     
     // Scenario: Control flow hijack attempt with multiple mitigations

@@ -30,7 +30,8 @@ static void print_usage(const char* program_name) {
     printf("  all                    Run all tests\n");
 }
 
-static test_type_t parse_test_type(const char* test_str) {
+// Returns a test_type_t value, or -1 if the string names no known test.
+static int parse_test_type(const char* test_str) {
     if (strcmp(test_str, "baseline-boundary") == 0) {
         return TEST_BASELINE_USER_KERNEL_BOUNDARY;
     } else if (strcmp(test_str, "baseline-smep") == 0) {
@@ -174,11 +175,11 @@ int main(int argc, char* argv[]) {
                 }
             }
         } else {
-            test_type_t test_type = parse_test_type(test_type_str);
+            int test_type = parse_test_type(test_type_str);
             if (test_type != -1) {
                 printf("[*] Running test: %s\n", test_type_str);
                 if (outcome_count < MAX_OUTCOMES) {
-                    outcomes[outcome_count++] = test_harness_run(harness, test_type);
+                    outcomes[outcome_count++] = test_harness_run(harness, (test_type_t)test_type);
                 }
             } else {
                 fprintf(stderr, "[-] Unknown test type: %s\n", test_type_str);
