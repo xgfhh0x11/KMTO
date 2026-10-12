@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <!-- Bu dosyayi kmto_driver_signing.props olarak kopyalayin veya Create-KmtoTestCertificate.ps1 calistirin. -->
+  <!-- Copy this file to kmto_driver_signing.props, or run Create-KmtoTestCertificate.ps1. -->
   <PropertyGroup>
-    <TestCertificate>BURAYA_SHA1_PARMAK_IZI</TestCertificate>
+    <TestCertificate>YOUR_SHA1_THUMBPRINT_HERE</TestCertificate>
   </PropertyGroup>
 </Project>
